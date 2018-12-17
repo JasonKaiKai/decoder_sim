@@ -6,17 +6,16 @@
 #define TIME_LIMIT (8 * 60 * 60)
 #define TOP 0
 #define BOTTOM 1
-#define tau         (1/59.94)
-#define h           262.5
+#define C_ENC 15800
+#define C_STORAGE 1600
+#define ALPHA 0.1
+using namespace std;
 
 // input
-double mean_inter_arrival = tau;
-int C_enc = 15800;
-int C_storage = 1600;
-double alpha = 0.1;
-int beta = 20;
-double field_complexity = h;
-int max_queue_length = beta;
+double mean_inter_arrival; //tau
+double rate_field_complexity;    //h
+int max_encoder_queue_length;   //(beta)
+
 
 // environment
 int encoder_buff_length = 0;
@@ -31,14 +30,25 @@ int storage_buff_length = 0;
 enum event_type {ARRIVAL, ENCODER_FINISH, STORAGE_FINISH};
 double current_time = 0;
 
+// random variable
+Expon rv_fobs_of_field;
+Expon rv_inter_arrival_t;
+
 // statistic
 int count_lost_field = 0;
 
-using namespace std;
-
+//prototype
 int CreateEvent(E_List*, int, double);
 int CreateEventwithType(E_List*, int, double, int);
-int main() {
+
+
+int main(int argc, char** argv) {
+    mean_inter_arrival = strtod(argv[1], NULL);
+    rate_field_complexity = strtod(argv[2], NULL);
+    max_encoder_queue_length = strtod(argv[3], NULL);
+
+    rv_fobs_of_field.SetMean(1/rate_field_complexity);
+    rv_inter_arrival_t.SetMean(mean_inter_arrival);
 
     encoder_busy = false;
     this_arrival_type = TOP;
@@ -57,6 +67,7 @@ int main() {
         switch(this_event -> getEventType()) {
             case ARRIVAL: {
                 // no field in the encoder
+                
                 if (encoder_busy == false) {
                     // To-Do: 產生 field fob
                     encoder_busy = true;
@@ -64,7 +75,7 @@ int main() {
                     // To-Do: 產生 ENCODER_FINISH event
                     this_arrival_type = !this_arrival_type;
                 }
-                else if (encoder_buff_length < max_queue_length) {
+                else if (encoder_buff_length < max_encoder_queue_length) {
                     if (encoder_buff_length == 0) {
                         encoder_buff_length++;
                         fieldType_encoder_front = this_arrival_type;
@@ -94,6 +105,7 @@ int main() {
                 break;
             }
             case ENCODER_FINISH: {
+
                 break;
             }
             case STORAGE_FINISH: {
