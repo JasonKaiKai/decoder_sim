@@ -5,11 +5,11 @@ INCLUDE = -I/usr/include
 
 all: main 
 
-main:	random.o e_list.o event.o random.o main.o
+main:	random.o e_list.o event.o random.o simulation.o
 	$(CC) -o $@ $? $(LIBS) 	
 
-main.o:	main.cc event.h e_list.h random.h mydef.h
-	$(CC) $(CFLAGS) -o $@ main.cc $(INCLUDE) 
+simulation.o:	simulation.cpp event.h e_list.h random.h mydef.h
+	$(CC) $(CFLAGS) -o $@ simulation.cpp $(INCLUDE) 
  
 random.o:	random.cc random.h
 	$(CC) $(CFLAGS) -o $@ random.cc $(INCLUDE)
