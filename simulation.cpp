@@ -12,7 +12,7 @@
 using namespace std;
 
 // input
-double mean_inter_arrival; //tau
+double rate_inter_arrival; // tau
 double rate_field_complexity;    //h
 int max_encoder_queue_length;   //(beta)
 
@@ -28,7 +28,7 @@ bool this_arrival_type;
 int storage_buff_length = 0;
 
 enum event_type {ARRIVAL, ENCODER_FINISH, STORAGE_FINISH};
-double current_time = 0;
+double current_time = 0.1;
 
 // random variable
 Expon rv_fobs_of_field;
@@ -43,12 +43,12 @@ int CreateEventwithType(E_List*, int, double, int);
 
 
 int main(int argc, char** argv) {
-    mean_inter_arrival = strtod(argv[1], NULL);
+    rate_inter_arrival = strtod(argv[1], NULL);
     rate_field_complexity = strtod(argv[2], NULL);
     max_encoder_queue_length = strtod(argv[3], NULL);
 
     rv_fobs_of_field.SetMean(1/rate_field_complexity);
-    rv_inter_arrival_t.SetMean(mean_inter_arrival);
+    rv_inter_arrival_t.SetMean(1/rate_inter_arrival);
 
     encoder_busy = false;
     this_arrival_type = TOP;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     E_List* E_List_ptr = new E_List;
    
     // Create the first ARRIVAL event with type TOP
-    CreateEvent(E_List_ptr, ARRIVAL, current_time);
+    CreateEvent(E_List_ptr, ARRIVAL, current_time+rv_inter_arrival_t++);
     
     while (current_time < TIME_LIMIT) {
         // 取出 this_event from e_list
@@ -66,13 +66,14 @@ int main(int argc, char** argv) {
 
         switch(this_event -> getEventType()) {
             case ARRIVAL: {
-                // no field in the encoder
-                
+                double next_arrival_time = current_time + rv_inter_arrival_t++;
+
                 if (encoder_busy == false) {
-                    // To-Do: 產生 field fob
                     encoder_busy = true;
                     fieldType_encoder_served = this_arrival_type;
-                    // To-Do: 產生 ENCODER_FINISH event
+
+                    double time_encode = rv_fobs_of_field++ / C_ENC;
+                    CreateEvent(E_List_ptr, ENCODER_FINISH, current_time+time_encode);
                     this_arrival_type = !this_arrival_type;
                 }
                 else if (encoder_buff_length < max_encoder_queue_length) {
@@ -91,17 +92,16 @@ int main(int argc, char** argv) {
                 else {
                     if(this_arrival_type == TOP) {
                         count_lost_field += 2;
-                        // To-Do: 產生兩次 next_arrival_time 並相加，當成下一次 arrival_time (跳過一次 bottom 的 arrival)
+                        next_arrival_time = next_arrival_time + rv_inter_arrival_t++;
                     }
                     else {
                         count_lost_field += 2;
                         encoder_buff_length --;
                         this_arrival_type = !this_arrival_type;
                         fieldType_encoder_back = !fieldType_encoder_back;
-
-                        // 產生一個 next_arrival_time
                     }
                 }
+                CreateEvent(E_List_ptr, ARRIVAL, next_arrival_time);
                 break;
             }
             case ENCODER_FINISH: {
