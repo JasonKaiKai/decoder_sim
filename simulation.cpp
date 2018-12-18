@@ -1,4 +1,5 @@
 #include <iostream>
+#include <queue>
 #include "e_list.h"
 #include "event.h"
 #include "random.h"
@@ -26,6 +27,8 @@ bool fieldType_encoder_served;
 bool this_arrival_type;
 
 int storage_buff_length = 0;
+bool storage_busy = false;
+queue<double> q_field_size;
 
 enum event_type {ARRIVAL, ENCODER_FINISH, STORAGE_FINISH};
 double current_time = 0.1;
@@ -69,10 +72,13 @@ int main(int argc, char** argv) {
                 double next_arrival_time = current_time + rv_inter_arrival_t++;
 
                 if (encoder_busy == false) {
+                    double field_size = rv_fobs_of_field++;
+                    double time_encode = field_size / C_ENC;
+                    
                     encoder_busy = true;
                     fieldType_encoder_served = this_arrival_type;
+                    q_field_size.push(field_size);
 
-                    double time_encode = rv_fobs_of_field++ / C_ENC;
                     CreateEvent(E_List_ptr, ENCODER_FINISH, current_time+time_encode);
                     this_arrival_type = !this_arrival_type;
                 }
@@ -105,10 +111,30 @@ int main(int argc, char** argv) {
                 break;
             }
             case ENCODER_FINISH: {
+                storage_buff_length++;
 
+                if(encoder_buff_length!=0){
+                    fieldType_encoder_served = fieldType_encoder_front;
+                    encoder_buff_length--;
+                    fieldType_encoder_front = !fieldType_encoder_front;
+
+                    double field_size = rv_fobs_of_field++;
+                    double time_encode = field_size / C_ENC;
+                    q_field_size.push(field_size);
+                    CreateEvent(E_List_ptr, ENCODER_FINISH, current_time+time_encode);     
+                }
+                else{
+                    encoder_busy = false;
+                }
+
+                if(storage_buff_length==1 && storage_busy!=false){
+                    storage_busy = true;
+                    
+                }
                 break;
             }
             case STORAGE_FINISH: {
+
                 break;
             }
         }
