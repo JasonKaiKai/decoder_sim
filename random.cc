@@ -1,5 +1,6 @@
 #include "random.h" 
-int Random::globalSeed=1;
+#include <time.h>
+int Random::globalSeed=(unsigned)time(NULL);
 int Normal01::FlipFlop=0;
 double Normal01::u1=0;
 double Normal01::u2=0;
@@ -27,7 +28,7 @@ void Expon::Initialize(int s,double u)
  
 double Expon::operator++(int)
 {
-    // restore(); marked by «Ø§Ó
+    // restore(); marked by ï¿½Ø§ï¿½
     return (-mean * log(prob()));
 }
 

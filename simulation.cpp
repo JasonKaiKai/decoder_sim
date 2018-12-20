@@ -5,14 +5,14 @@
 #include "event.h"
 #include "random.h"
 
-#define TIME_LIMIT (8  * 60)
+#define TIME_LIMIT (8*60*60)
 #define TOP 0
 #define BOTTOM 1
 #define C_ENC 15800
 #define C_STORAGE 1600
 #define ALPHA 0.1
 
-#define DEBUG true
+#define DEBUG false
 using namespace std;
 
 // input
@@ -37,6 +37,7 @@ enum event_type {ARRIVAL, ENCODER_FINISH, STORAGE_FINISH};
 double current_time = 0.1;
 
 fstream fp;
+fstream fp_result;
 
 // random variable
 Expon rv_fobs_of_field;
@@ -46,9 +47,13 @@ Expon rv_inter_arrival_t;
 int count_field_arrival = 0;
 int count_lost_field = 0;
 
+double t_last_storage_change_state=0;
+double storage_busy_time=0;
+
 //prototype
 int CreateEvent(E_List*, int, double);
 int CreateEventwithType(E_List*, int, double, int);
+void staStorageBusyT(double, bool);
 void printState();
 
 int main(int argc, char** argv) {
@@ -60,6 +65,7 @@ int main(int argc, char** argv) {
     rv_inter_arrival_t.SetMean(1/rate_inter_arrival);
 
     fp.open("debug.txt", ios::out);    
+    fp_result.open("result.txt", ios::app);
 
     encoder_busy = false;
     this_arrival_type = TOP;
@@ -153,6 +159,7 @@ int main(int argc, char** argv) {
                     double frame_size = ALPHA*(field_size_first+field_size_second);
                     double time_storage_process = frame_size/C_STORAGE;
                     
+                    staStorageBusyT(current_time, storage_busy);
                     CreateEvent(E_List_ptr, STORAGE_FINISH, current_time+time_storage_process);                    
                 }
                 else{
@@ -168,6 +175,7 @@ int main(int argc, char** argv) {
             case STORAGE_FINISH: {
                 if(storage_buff_length<=1){
                     storage_busy = false;
+                    staStorageBusyT(current_time, storage_busy);
                 }
                 else{
                     storage_buff_length -= 2;
@@ -191,6 +199,12 @@ int main(int argc, char** argv) {
     }
 
     cout<< "blocking prob: "<< (double)count_lost_field/count_field_arrival<<endl;
+    cout<< "Storage utilization: "<<(double)storage_busy_time / current_time<<endl;
+    fp_result<<(double)count_lost_field/count_field_arrival<<" "
+            <<(double)storage_busy_time / current_time<<endl;
+
+    fp.close();
+    fp_result.close();
 
     return 0;
 }
@@ -212,6 +226,13 @@ int CreateEventwithType (E_List* ptr, int type, double timestamp, int fieldtype)
 
     return 1;
 }
+
+void staStorageBusyT(double currentTime, bool stateAfterChange){
+    if(stateAfterChange==false){
+        storage_busy_time += (currentTime - t_last_storage_change_state);
+    }
+    t_last_storage_change_state = current_time;
+}
  
 void printState(){
     fp<<"current time: "<<current_time<<endl
@@ -227,5 +248,7 @@ void printState(){
         <<"front: "<<q_field_size.front()<<endl
         <<"back: "<<q_field_size.back()<<endl<<endl
         <<"-------------------------------------------------------------"<<endl;
+
 }
+
 
